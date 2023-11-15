@@ -1,7 +1,7 @@
 // Skeleton API Request
-export const fetchSkeletonTikTokData = async (cursor: string) => {
+export const fetchSkeletonTikTokData = async () => {
 	try {
-		const placeholderURL = "";
+		const placeholderURL = "https://httpbin.org/get";
 		const response = await fetch(placeholderURL, {
 			method: "GET",
 			headers: {

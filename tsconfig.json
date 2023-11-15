@@ -9,5 +9,6 @@
 		"moduleResolution": "node",
 		"esModuleInterop": true,
 		"resolveJsonModule": true
-	}
+	},
+	"exclude": ["tests/**/*.ts"]
 }

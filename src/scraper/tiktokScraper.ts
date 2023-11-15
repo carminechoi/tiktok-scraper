@@ -1,13 +1,8 @@
 import { fetchSkeletonTikTokData } from "./tiktokApi";
 
 export const tiktokScraper = async () => {
-	let cursor = "";
-
 	// Retrive web page
-	const responseData = await fetchSkeletonTikTokData(cursor);
-
+	const responseData = await fetchSkeletonTikTokData();
+	console.log(responseData);
 	// Process the data as needed
-
-	// Update cursor for the next iteration
-	cursor = responseData.nextCursor;
 };

@@ -1,8 +1,7 @@
-import { fetchSkeletonTikTokData } from "./tiktokApi";
+import { fetchTikTokVideosByHashtag } from "./tiktokApi";
 
 export const tiktokScraper = async () => {
 	// Retrive web page
-	const responseData = await fetchSkeletonTikTokData();
-	console.log(responseData);
+	const responseData = await fetchTikTokVideosByHashtag();
 	// Process the data as needed
 };

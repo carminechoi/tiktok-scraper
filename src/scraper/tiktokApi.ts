@@ -1,7 +1,3 @@
-import dotenv from "dotenv";
-
-dotenv.config();
-
 const { TT_CHAIN_TOKEN, TTWID } = process.env;
 
 if (!TT_CHAIN_TOKEN || !TTWID) {
@@ -36,9 +32,9 @@ const fetchTikTokVideosByHashtag = async (
 	}
 };
 
-const fetchTikTokTrendingVideos = async (): Promise<string[]> => {
+const fetchTikTokTrendingVideos = async (count: number = 50) => {
 	try {
-		const url = `https://m.tiktok.com/api/item_list/?count=50&id=1&type=5&maxCursor=0&minCursor=0&sourceType=12`;
+		const url = `https://m.tiktok.com/api/item_list/?count=${count}&id=1&type=5&maxCursor=0&minCursor=0&sourceType=12`;
 		const headers = new Headers({
 			"User-Agent":
 				"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
@@ -62,22 +58,33 @@ const fetchTikTokTrendingVideos = async (): Promise<string[]> => {
 		}
 
 		const data = await response.json();
-		const items = data.items;
-		const videoUrls: string[] = [];
-
-		items.forEach((item: { author: { uniqueId: any }; video: { id: any } }) => {
-			const authorId = item.author.uniqueId;
-			const videoId = item.video.id;
-
-			const videoUrl = `https://tiktok.com/@${authorId}/video/${videoId}`;
-			videoUrls.push(videoUrl);
-		});
-
-		return videoUrls;
+		return data.items;
 	} catch (error) {
 		console.error("Error fetching TikTok trending data:", error);
 		throw error;
 	}
 };
 
-export { fetchTikTokVideosByHashtag, fetchTikTokTrendingVideos };
+const fetchTiktokVideo = async (videoUrl: string): Promise<string> => {
+	try {
+		const headers = new Headers({
+			Cookie: `tt_chain_token=${TT_CHAIN_TOKEN}; ttwid=${TTWID};`,
+		});
+		const response = await fetch(videoUrl, { method: "get", headers: headers });
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! Status: ${response.status}`);
+		}
+
+		return await response.text();
+	} catch (error) {
+		console.error("Error fetching TikTok video:", error);
+		throw error;
+	}
+};
+
+export {
+	fetchTikTokVideosByHashtag,
+	fetchTikTokTrendingVideos,
+	fetchTiktokVideo,
+};

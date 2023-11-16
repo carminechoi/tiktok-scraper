@@ -7,7 +7,7 @@ export const tiktokScraper = async () => {
 	// Retrieve trending video data
 	const trendingPostList = await fetchTikTokTrendingVideos();
 
-	// Find all fashion related posts based on hashtags
+	// Filter for fashion related posts based on hashtag keywords
 	const fashionPostList: TikTokPost[] = trendingPostList.filter(
 		(post: TikTokPost) =>
 			keywords.some((keyword) => getHashTags(post.textExtra).includes(keyword))

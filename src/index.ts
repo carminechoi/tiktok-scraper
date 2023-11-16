@@ -4,7 +4,7 @@ import { tiktokScraper } from "./scraper/tiktokScraper";
 
 const scheduleScrapper = () => {
 	// Schedule scraper to run 1 minute
-	cron.schedule("*/1 * * * *", () => {
+	cron.schedule("*/10 * * * * *", () => {
 		console.log("Running TikTok scraper...");
 		tiktokScraper();
 	});

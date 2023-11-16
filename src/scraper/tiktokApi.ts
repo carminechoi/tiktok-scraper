@@ -80,4 +80,23 @@ const fetchTikTokTrendingVideos = async (): Promise<string[]> => {
 	}
 };
 
-export { fetchTikTokVideosByHashtag, fetchTikTokTrendingVideos };
+const fetchTiktokVideo = async (videoUrl: string): Promise<string> => {
+	try {
+		const response = await fetch(videoUrl);
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! Status: ${response.status}`);
+		}
+
+		return await response.text();
+	} catch (error) {
+		console.error("Error fetching TikTok video:", error);
+		throw error;
+	}
+};
+
+export {
+	fetchTikTokVideosByHashtag,
+	fetchTikTokTrendingVideos,
+	fetchTiktokVideo,
+};

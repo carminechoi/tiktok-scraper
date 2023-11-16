@@ -3,7 +3,7 @@ import { fetchTikTokTrendingVideos } from "./tiktokApi";
 import { keywords } from "../fashion-keywords.json";
 import { TikTokPost, FashionAttributes } from "../types/tiktokTypes";
 
-export const tiktokScraper = async (fashionVideoCounter: number = 0) => {
+export const tiktokScraper = async () => {
 	// Retrieve trending video data
 	const trendingPostList = await fetchTikTokTrendingVideos();
 
@@ -13,8 +13,6 @@ export const tiktokScraper = async (fashionVideoCounter: number = 0) => {
 			keywords.some((keyword) => getHashTags(post.textExtra).includes(keyword))
 	);
 
-	fashionVideoCounter += fashionPostList.length;
-
 	// Scrape attributes of each fashion post
 	const fashionAttributesList: FashionAttributes[] = await Promise.all(
 		fashionPostList.map(async (fashionPost) => {
@@ -23,11 +21,7 @@ export const tiktokScraper = async (fashionVideoCounter: number = 0) => {
 	);
 
 	// Save result to CSV
-	saveToCSV(fashionAttributesList);
-
-	if (fashionVideoCounter < 1000) {
-		await tiktokScraper(fashionVideoCounter);
-	}
+	if (fashionAttributesList.length != 0) saveToCSV(fashionAttributesList);
 };
 
 const getHashTags = (textExtraArray: { hashtagName: string }[]): string => {

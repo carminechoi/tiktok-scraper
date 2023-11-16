@@ -1,83 +1,64 @@
-import * as cheerio from "cheerio";
 import { createObjectCsvWriter } from "csv-writer";
-import {
-	fetchTikTokTrendingVideos,
-	fetchTikTokVideosByHashtag,
-	fetchTiktokVideo,
-} from "./tiktokApi";
-import { ObjectMap } from "csv-writer/src/lib/lang/object";
+import { fetchTikTokTrendingVideos } from "./tiktokApi";
+import { keywords } from "../fashion-keywords.json";
+import { TikTokPost, FashionAttributes } from "../types/tiktokTypes";
 
-export const tiktokScraper = async () => {
-	// Retrieve video urls
-	// const fashionVideoList = await fetchTikTokVideosByHashtag("fashion");
-	// const ootdVideoList = await fetchTikTokVideosByHashtag("ootd");
-	const trendingVideoList = await fetchTikTokTrendingVideos(2);
+export const tiktokScraper = async (fashionVideoCounter: number = 0) => {
+	// Retrieve trending video data
+	const trendingPostList = await fetchTikTokTrendingVideos();
 
-	const videoUrlList = [
-		// ...fashionVideoList,
-		// ...ootdVideoList,
-		...trendingVideoList,
-	];
+	// Find all fashion related posts based on hashtags
+	const fashionPostList: TikTokPost[] = trendingPostList.filter(
+		(post: TikTokPost) =>
+			keywords.some((keyword) => getHashTags(post.textExtra).includes(keyword))
+	);
 
-	// For each video: scrape attributes, score, and save to CSV
-	const videoAttributesList: any = [];
-	await Promise.all(
-		videoUrlList.map(async (videoUrl) => {
-			const attributes = await getAttributes(videoUrl);
-			if (attributes) videoAttributesList.push(attributes);
+	fashionVideoCounter += fashionPostList.length;
+
+	// Scrape attributes of each fashion post
+	const fashionAttributesList: FashionAttributes[] = await Promise.all(
+		fashionPostList.map(async (fashionPost) => {
+			return await getAttributes(fashionPost);
 		})
 	);
 
-	saveToCSV(videoAttributesList);
+	// Save result to CSV
+	saveToCSV(fashionAttributesList);
+
+	if (fashionVideoCounter < 1000) {
+		await tiktokScraper(fashionVideoCounter);
+	}
 };
 
-const getAttributes = async (videoUrl: string) => {
+const getHashTags = (textExtraArray: { hashtagName: string }[]): string => {
+	if (textExtraArray) {
+		return textExtraArray.map((item) => `#${item.hashtagName}`).join("\n");
+	} else {
+		return "";
+	}
+};
+
+const getAttributes = async (post: TikTokPost) => {
 	try {
-		const html = await fetchTiktokVideo(videoUrl);
+		const attributes: FashionAttributes = {
+			PostURL: `https://tiktok.com/@${post.author.uniqueId}/video/${post.video.id}`,
+			Account: post.author.uniqueId,
+			"Account Followers": post.authorStats.followerCount,
+			Views: post.stats.playCount,
+			Likes: post.stats.diggCount,
+			"Comment Count": post.stats.commentCount,
+			Saved: post.stats.collectCount,
+			Caption: post.desc,
+			Hashtags: getHashTags(post.textExtra),
+			"Date Posted": formatDate(post.createTime),
+			"Date Collected": formatDate(Date.now() / 1000),
+			Shares: post.stats.shareCount,
+		};
 
-		// Load HTML into Cheerio
-		const $ = cheerio.load(html);
-		const scriptContent = $("#SIGI_STATE").text();
-
-		if (scriptContent) {
-			try {
-				const jsonData = JSON.parse(scriptContent);
-				const videoId = Object.keys(jsonData.ItemModule)[0];
-				const itemModule = jsonData.ItemModule[videoId];
-
-				const stats = itemModule?.stats;
-
-				let hashtags: string = "";
-				itemModule.challenges.forEach((challenge: any) => {
-					hashtags += "#" + challenge.title + "\n";
-				});
-
-				const attributes = {
-					PostURL: videoUrl,
-					Account: itemModule?.author,
-					Views: stats?.playCount,
-					Likes: stats?.diggCount,
-					"Comment Count": stats?.commentCount,
-					Saved: stats?.collectCount,
-					Caption: itemModule?.desc,
-					Hashtags: hashtags,
-					"Date Posted": formatDate(itemModule?.createTime),
-					"Date Collected": formatDate(Date.now() / 1000),
-					Shares: stats?.shareCount,
-				};
-
-				return attributes;
-			} catch (error) {
-				console.error("Error parsing JSON:", error);
-			}
-			return null;
-		} else {
-			console.error("Script with video ID not found.");
-			return null;
-		}
+		return attributes;
 	} catch (error) {
-		console.error("Error fetching metadata:", error);
-		throw error;
+		console.error("Error in getAttributes:", error);
+		return <FashionAttributes>{};
 	}
 };
 
@@ -90,30 +71,36 @@ const formatDate = (timestamp: number) => {
 	});
 };
 
-const saveToCSV = (record: ObjectMap<any>[]) => {
-	const csvWriter = createObjectCsvWriter({
-		path: "tiktok_fashion_posts.csv",
-		header: [
-			{ id: "PostURL", title: "PostURL" },
-			{ id: "Account", title: "Account" },
-			{ id: "Views", title: "Views" },
-			{ id: "Likes", title: "Likes" },
-			{ id: "Comment Count", title: "Comment Count" },
-			{ id: "Saved", title: "Saved" },
-			{ id: "Caption", title: "Caption" },
-			{ id: "Hashtags", title: "Hashtags" },
-			{ id: "Date Posted", title: "Date Posted" },
-			{ id: "Date Collected", title: "Date Collected" },
-			{ id: "Shares", title: "Shares" },
-		],
-	});
-
-	csvWriter
-		.writeRecords(record)
-		.then(() => {
-			console.log("...Done");
-		})
-		.catch((error) => {
-			console.error("Error writing to CSV:", error);
+const saveToCSV = (record: FashionAttributes[]) => {
+	try {
+		const csvWriter = createObjectCsvWriter({
+			path: "tiktok-fashion-posts.csv",
+			header: [
+				{ id: "PostURL", title: "PostURL" },
+				{ id: "Account", title: "Account" },
+				{ id: "Account Followers", title: "Account Followers" },
+				{ id: "Views", title: "Views" },
+				{ id: "Likes", title: "Likes" },
+				{ id: "Comment Count", title: "Comment Count" },
+				{ id: "Saved", title: "Saved" },
+				{ id: "Caption", title: "Caption" },
+				{ id: "Hashtags", title: "Hashtags" },
+				{ id: "Date Posted", title: "Date Posted" },
+				{ id: "Date Collected", title: "Date Collected" },
+				{ id: "Shares", title: "Shares" },
+			],
+			append: true,
 		});
+
+		csvWriter
+			.writeRecords(record)
+			.then(() => {
+				console.log("CSV write complete");
+			})
+			.catch((error) => {
+				console.error("Error writing to CSV:", error);
+			});
+	} catch (error) {
+		console.error("Error in saveToCSV:", error);
+	}
 };

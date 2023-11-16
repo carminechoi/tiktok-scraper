@@ -32,9 +32,7 @@ const fetchTikTokVideosByHashtag = async (
 	}
 };
 
-const fetchTikTokTrendingVideos = async (
-	count: number = 50
-): Promise<string[]> => {
+const fetchTikTokTrendingVideos = async (count: number = 50) => {
 	try {
 		const url = `https://m.tiktok.com/api/item_list/?count=${count}&id=1&type=5&maxCursor=0&minCursor=0&sourceType=12`;
 		const headers = new Headers({
@@ -60,18 +58,7 @@ const fetchTikTokTrendingVideos = async (
 		}
 
 		const data = await response.json();
-		const items = data.items;
-		const videoUrls: string[] = [];
-
-		items.forEach((item: { author: { uniqueId: any }; video: { id: any } }) => {
-			const authorId = item.author.uniqueId;
-			const videoId = item.video.id;
-
-			const videoUrl = `https://tiktok.com/@${authorId}/video/${videoId}`;
-			videoUrls.push(videoUrl);
-		});
-
-		return videoUrls;
+		return data.items;
 	} catch (error) {
 		console.error("Error fetching TikTok trending data:", error);
 		throw error;
@@ -80,7 +67,10 @@ const fetchTikTokTrendingVideos = async (
 
 const fetchTiktokVideo = async (videoUrl: string): Promise<string> => {
 	try {
-		const response = await fetch(videoUrl);
+		const headers = new Headers({
+			Cookie: `tt_chain_token=${TT_CHAIN_TOKEN}; ttwid=${TTWID};`,
+		});
+		const response = await fetch(videoUrl, { method: "get", headers: headers });
 
 		if (!response.ok) {
 			throw new Error(`HTTP error! Status: ${response.status}`);

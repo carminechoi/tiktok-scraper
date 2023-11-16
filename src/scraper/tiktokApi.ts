@@ -1,6 +1,4 @@
-import dotenv from "dotenv";
-
-dotenv.config();
+import "dotenv/config";
 
 const { TT_CHAIN_TOKEN, TTWID } = process.env;
 
@@ -36,9 +34,11 @@ const fetchTikTokVideosByHashtag = async (
 	}
 };
 
-const fetchTikTokTrendingVideos = async (): Promise<string[]> => {
+const fetchTikTokTrendingVideos = async (
+	count: number = 50
+): Promise<string[]> => {
 	try {
-		const url = `https://m.tiktok.com/api/item_list/?count=50&id=1&type=5&maxCursor=0&minCursor=0&sourceType=12`;
+		const url = `https://m.tiktok.com/api/item_list/?count=${count}&id=1&type=5&maxCursor=0&minCursor=0&sourceType=12`;
 		const headers = new Headers({
 			"User-Agent":
 				"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",

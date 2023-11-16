@@ -1,5 +1,3 @@
-import "dotenv/config";
-
 const { TT_CHAIN_TOKEN, TTWID } = process.env;
 
 if (!TT_CHAIN_TOKEN || !TTWID) {

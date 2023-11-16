@@ -1,26 +1,34 @@
 import * as cheerio from "cheerio";
+import { createObjectCsvWriter } from "csv-writer";
 import {
 	fetchTikTokTrendingVideos,
 	fetchTikTokVideosByHashtag,
 	fetchTiktokVideo,
 } from "./tiktokApi";
+import { ObjectMap } from "csv-writer/src/lib/lang/object";
 
 export const tiktokScraper = async () => {
 	// Retrieve video urls
-	const fashionVideoList = await fetchTikTokVideosByHashtag("fashion");
-	const ootdVideoList = await fetchTikTokVideosByHashtag("ootd");
-	const trendingVideoList = await fetchTikTokTrendingVideos(1);
+	// const fashionVideoList = await fetchTikTokVideosByHashtag("fashion");
+	// const ootdVideoList = await fetchTikTokVideosByHashtag("ootd");
+	const trendingVideoList = await fetchTikTokTrendingVideos(2);
 
 	const videoUrlList = [
-		...fashionVideoList,
-		...ootdVideoList,
+		// ...fashionVideoList,
+		// ...ootdVideoList,
 		...trendingVideoList,
 	];
 
 	// For each video: scrape attributes, score, and save to CSV
-	videoUrlList.map((videoUrl) => {
-		const attributes = getAttributes(videoUrl);
-	});
+	const videoAttributesList: any = [];
+	await Promise.all(
+		videoUrlList.map(async (videoUrl) => {
+			const attributes = await getAttributes(videoUrl);
+			if (attributes) videoAttributesList.push(attributes);
+		})
+	);
+
+	saveToCSV(videoAttributesList);
 };
 
 const getAttributes = async (videoUrl: string) => {
@@ -39,9 +47,9 @@ const getAttributes = async (videoUrl: string) => {
 
 				const stats = itemModule?.stats;
 
-				const hashtags: string[] = [];
+				let hashtags: string = "";
 				itemModule.challenges.forEach((challenge: any) => {
-					hashtags.push(challenge.title);
+					hashtags += "#" + challenge.title + "\n";
 				});
 
 				const attributes = {
@@ -50,7 +58,7 @@ const getAttributes = async (videoUrl: string) => {
 					Views: stats?.playCount,
 					Likes: stats?.diggCount,
 					"Comment Count": stats?.commentCount,
-					"Saved Count": stats?.collectCount,
+					Saved: stats?.collectCount,
 					Caption: itemModule?.desc,
 					Hashtags: hashtags,
 					"Date Posted": formatDate(itemModule?.createTime),
@@ -58,12 +66,14 @@ const getAttributes = async (videoUrl: string) => {
 					Shares: stats?.shareCount,
 				};
 
-				console.log(attributes);
+				return attributes;
 			} catch (error) {
 				console.error("Error parsing JSON:", error);
 			}
+			return null;
 		} else {
-			console.log("Script with video ID not found.");
+			console.error("Script with video ID not found.");
+			return null;
 		}
 	} catch (error) {
 		console.error("Error fetching metadata:", error);
@@ -78,4 +88,32 @@ const formatDate = (timestamp: number) => {
 		day: "numeric",
 		timeZone: "America/Los_Angeles",
 	});
+};
+
+const saveToCSV = (record: ObjectMap<any>[]) => {
+	const csvWriter = createObjectCsvWriter({
+		path: "tiktok_fashion_posts.csv",
+		header: [
+			{ id: "PostURL", title: "PostURL" },
+			{ id: "Account", title: "Account" },
+			{ id: "Views", title: "Views" },
+			{ id: "Likes", title: "Likes" },
+			{ id: "Comment Count", title: "Comment Count" },
+			{ id: "Saved", title: "Saved" },
+			{ id: "Caption", title: "Caption" },
+			{ id: "Hashtags", title: "Hashtags" },
+			{ id: "Date Posted", title: "Date Posted" },
+			{ id: "Date Collected", title: "Date Collected" },
+			{ id: "Shares", title: "Shares" },
+		],
+	});
+
+	csvWriter
+		.writeRecords(record)
+		.then(() => {
+			console.log("...Done");
+		})
+		.catch((error) => {
+			console.error("Error writing to CSV:", error);
+		});
 };

@@ -7,7 +7,7 @@ if (!TT_CHAIN_TOKEN || !TTWID) {
 const fetchTikTokVideosByHashtag = async (
 	hashtag: string = "fashion",
 	offset: number = 0
-): Promise<string[]> => {
+) => {
 	try {
 		const url = `https://www.tiktok.com/api/search/general/full/?keyword=%23${hashtag}&offset=${offset}`;
 

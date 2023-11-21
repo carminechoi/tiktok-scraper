@@ -1,27 +1,36 @@
 import { createObjectCsvWriter } from "csv-writer";
-import { fetchTikTokTrendingVideos } from "./tiktokApi";
+import {
+	fetchTikTokVideosByHashtag,
+	fetchTikTokTrendingVideos,
+} from "./tiktokApi";
 import { keywords } from "../fashion-keywords.json";
 import { TikTokPost, FashionAttributes } from "../types/tiktokTypes";
 
 export const tiktokScraper = async () => {
-	// Retrieve trending video data
-	const trendingPostList = await fetchTikTokTrendingVideos();
+	const fashionData = await fetchTikTokVideosByHashtag("fashion", 0);
+	const searchId = fashionData.extra.logid;
+	const cursor = fashionData.cursor;
 
-	// Filter for fashion related posts based on hashtag keywords
-	const fashionPostList: TikTokPost[] = trendingPostList.filter(
-		(post: TikTokPost) =>
-			keywords.some((keyword) => getHashTags(post.textExtra).includes(keyword))
-	);
+	// // Retrieve trending video data
+	// const trendingPostList = await fetchTikTokTrendingVideos();
 
-	// Scrape attributes of each fashion post
-	const fashionAttributesList: FashionAttributes[] = await Promise.all(
-		fashionPostList.map(async (fashionPost) => {
-			return await getAttributes(fashionPost);
-		})
-	);
+	// // Filter for fashion related posts based on hashtag keywords
+	// const fashionPostList: TikTokPost[] = trendingPostList.filter(
+	// 	(post: TikTokPost) =>
+	// 		keywords.some((keyword) =>
+	// 			getHashTags(post.textExtra).includes(keyword)
+	// 		)
+	// );
 
-	// Save result to CSV
-	if (fashionAttributesList.length != 0) saveToCSV(fashionAttributesList);
+	// // Scrape attributes of each fashion post
+	// const fashionAttributesList: FashionAttributes[] = await Promise.all(
+	// 	fashionPostList.map(async (fashionPost) => {
+	// 		return await getAttributes(fashionPost);
+	// 	})
+	// );
+
+	// // Save result to CSV
+	// if (fashionAttributesList.length != 0) saveToCSV(fashionAttributesList);
 };
 
 const getHashTags = (textExtraArray: { hashtagName: string }[]): string => {

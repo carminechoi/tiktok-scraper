@@ -1,7 +1,6 @@
 import "dotenv/config";
 import cron from "node-cron";
 import { tiktokScraper } from "./scraper/tiktokScraper";
-import { fetchTikTokVideosByHashtag } from "./scraper/tiktokApi";
 
 // const scheduleScrapper = () => {
 // 	// Schedule scraper to run 1 minute
@@ -13,4 +12,4 @@ import { fetchTikTokVideosByHashtag } from "./scraper/tiktokApi";
 
 // scheduleScrapper();
 
-fetchTikTokVideosByHashtag().then((data) => console.log(data));
+tiktokScraper();

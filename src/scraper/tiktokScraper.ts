@@ -1,10 +1,11 @@
-import { createObjectCsvWriter } from "csv-writer";
 import { fetchTikTokPostsByHashtag } from "./tiktokApi";
 import { keywords } from "../fashion-keywords.json";
-import { TikTokAttributes } from "../types/tiktokTypes";
 import arrayToString from "../utils/arrayToString";
 import delay from "../utils/delay";
 import formatDate from "../utils/formatDate";
+import saveToCSV from "../utils/saveToCSV";
+import { TikTokAttributes } from "../types/tiktokTypes";
+import { CsvHeader } from "../types/csvTypes";
 
 export const tiktokScraper = async () => {
 	const DELAY_TIMER_MS = 1000;
@@ -30,7 +31,25 @@ export const tiktokScraper = async () => {
 	}
 
 	// Save result to CSV
-	if (attributesList.length != 0) saveToCSV(attributesList);
+	const headers: CsvHeader[] = [
+		{ id: "PostURL", title: "PostURL" },
+		{ id: "Account", title: "Account" },
+		{ id: "Account Followers", title: "Account Followers" },
+		{ id: "Account Heart Count", title: "Account Heart Count" },
+		{ id: "Account Video Count", title: "Account Video Count" },
+		{ id: "Views", title: "Views" },
+		{ id: "Likes", title: "Likes" },
+		{ id: "Shares", title: "Shares" },
+		{ id: "Saved", title: "Saved" },
+		{ id: "Comment Count", title: "Comment Count" },
+		{ id: "Caption", title: "Caption" },
+		{ id: "Hashtags", title: "Hashtags" },
+		{ id: "Music", title: "Music" },
+		{ id: "Date Posted", title: "Date Posted" },
+		{ id: "Date Collected", title: "Date Collected" },
+	];
+
+	saveToCSV("tiktok-fashion-posts.csv", headers, attributesList);
 };
 
 const getAttributesFromTikTokPosts = (posts: any) => {
@@ -41,7 +60,7 @@ const getAttributesFromTikTokPosts = (posts: any) => {
 			if (post?.type == 1) {
 				const attributes: TikTokAttributes = {
 					id: post.item.id,
-					PostURL: `https://tiktok.com/@${post.item.author.uniqueId}/video/${post.item.video.id}`,
+					PostURL: `https://www.tiktok.com/@${post.item.author.uniqueId}/video/${post.item.video.id}`,
 					Account: post.item.author.uniqueId,
 					"Account Followers": post.item.authorStats.followerCount,
 					"Account Heart Count": post.item.authorStats.heartCount,
@@ -54,7 +73,7 @@ const getAttributesFromTikTokPosts = (posts: any) => {
 					Comments: [],
 					Caption: post.item.desc,
 					Hashtags: arrayToString(
-						post.item.challenges.map((challenge: any) => challenge.title)
+						post.item.challenges?.map((challenge: any) => challenge.title)
 					),
 					Music: post.item.music.title,
 					"Date Posted": formatDate(post.item.createTime),
@@ -69,42 +88,5 @@ const getAttributesFromTikTokPosts = (posts: any) => {
 	} catch (error) {
 		console.error("Error in getAttributesFromTikTokPost:", error);
 		return attributesList;
-	}
-};
-
-const saveToCSV = (record: TikTokAttributes[]) => {
-	try {
-		const csvWriter = createObjectCsvWriter({
-			path: "tiktok-fashion-posts.csv",
-			header: [
-				{ id: "PostURL", title: "PostURL" },
-				{ id: "Account", title: "Account" },
-				{ id: "Account Followers", title: "Account Followers" },
-				{ id: "Account Heart Count", title: "Account Heart Count" },
-				{ id: "Account Video Count", title: "Account Video Count" },
-				{ id: "Views", title: "Views" },
-				{ id: "Likes", title: "Likes" },
-				{ id: "Shares", title: "Shares" },
-				{ id: "Saved", title: "Saved" },
-				{ id: "Comment Count", title: "Comment Count" },
-				{ id: "Caption", title: "Caption" },
-				{ id: "Hashtags", title: "Hashtags" },
-				{ id: "Music", title: "Music" },
-				{ id: "Date Posted", title: "Date Posted" },
-				{ id: "Date Collected", title: "Date Collected" },
-			],
-			append: true,
-		});
-
-		csvWriter
-			.writeRecords(record)
-			.then(() => {
-				console.log("CSV write complete");
-			})
-			.catch((error) => {
-				console.error("Error writing to CSV:", error);
-			});
-	} catch (error) {
-		console.error("Error in saveToCSV:", error);
 	}
 };

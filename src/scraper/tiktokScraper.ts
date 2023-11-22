@@ -9,7 +9,7 @@ import { CsvHeader } from "../types/csvTypes";
 
 export const tiktokScraper = async () => {
 	const DELAY_TIMER_MS = 1000;
-	const CUSOR_MAX = 100;
+	const CUSOR_MAX = 10;
 
 	let cursor = 0;
 	let searchId = "";
@@ -20,6 +20,7 @@ export const tiktokScraper = async () => {
 		const attributes = getAttributesFromTikTokPosts(posts);
 		attributesList.push(...attributes);
 
+		// Update for next fetch
 		cursor = posts.cursor;
 		searchId = posts.extra.logid;
 
@@ -30,15 +31,17 @@ export const tiktokScraper = async () => {
 		await delay(DELAY_TIMER_MS);
 	}
 
-	// Save result to CSV
-	const headers: CsvHeader[] = Object.keys({} as TikTokAttributes).map(
-		(key) => ({
-			id: key as keyof TikTokAttributes,
-			title: key as keyof TikTokAttributes,
-		})
-	);
+	// Save result to CSV if attributesList is not empty
+	if (attributesList.length > 0) {
+		const header: CsvHeader[] = Object.keys(attributesList[0])
+			.filter((key) => key !== "id")
+			.map((key) => ({
+				id: key,
+				title: key,
+			}));
 
-	saveToCSV("tiktok-fashion-posts.csv", headers, attributesList);
+		await saveToCSV("tiktok-fashion-posts.csv", header, attributesList);
+	}
 };
 
 const getAttributesFromTikTokPosts = (posts: any) => {

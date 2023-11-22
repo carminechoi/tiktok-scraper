@@ -1,16 +1,19 @@
 import { createObjectCsvWriter } from "csv-writer";
+import fs from "fs/promises";
 import { CsvHeader, CsvRecord } from "../types/csvTypes";
 
-const saveToCSV = (
+const saveToCSV = async (
 	path: string,
-	headers: CsvHeader[],
+	header: CsvHeader[],
 	records: CsvRecord[]
 ) => {
 	try {
+		const append = await fileExists(path);
+
 		const csvWriter = createObjectCsvWriter({
 			path,
-			header: headers,
-			append: true,
+			header: header,
+			append,
 		});
 
 		csvWriter
@@ -23,6 +26,16 @@ const saveToCSV = (
 			});
 	} catch (error) {
 		console.error("Error in saveToCSV:", error);
+	}
+};
+
+const fileExists = async (path: string) => {
+	try {
+		await fs.access(path);
+		const st = await fs.stat(path);
+		return st.size > 0;
+	} catch (error) {
+		return false;
 	}
 };
 

@@ -31,23 +31,12 @@ export const tiktokScraper = async () => {
 	}
 
 	// Save result to CSV
-	const headers: CsvHeader[] = [
-		{ id: "PostURL", title: "PostURL" },
-		{ id: "Account", title: "Account" },
-		{ id: "Account Followers", title: "Account Followers" },
-		{ id: "Account Heart Count", title: "Account Heart Count" },
-		{ id: "Account Video Count", title: "Account Video Count" },
-		{ id: "Views", title: "Views" },
-		{ id: "Likes", title: "Likes" },
-		{ id: "Shares", title: "Shares" },
-		{ id: "Saved", title: "Saved" },
-		{ id: "Comment Count", title: "Comment Count" },
-		{ id: "Caption", title: "Caption" },
-		{ id: "Hashtags", title: "Hashtags" },
-		{ id: "Music", title: "Music" },
-		{ id: "Date Posted", title: "Date Posted" },
-		{ id: "Date Collected", title: "Date Collected" },
-	];
+	const headers: CsvHeader[] = Object.keys({} as TikTokAttributes).map(
+		(key) => ({
+			id: key as keyof TikTokAttributes,
+			title: key as keyof TikTokAttributes,
+		})
+	);
 
 	saveToCSV("tiktok-fashion-posts.csv", headers, attributesList);
 };

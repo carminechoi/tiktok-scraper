@@ -1,80 +1,78 @@
 import { createObjectCsvWriter } from "csv-writer";
-import {
-	fetchTikTokVideosByHashtag,
-	fetchTikTokTrendingVideos,
-} from "./tiktokApi";
+import { fetchTikTokPostsByHashtag } from "./tiktokApi";
 import { keywords } from "../fashion-keywords.json";
-import { TikTokPost, FashionAttributes } from "../types/tiktokTypes";
+import { TikTokAttributes } from "../types/tiktokTypes";
+import arrayToString from "../utils/arrayToString";
+import delay from "../utils/delay";
+import formatDate from "../utils/formatDate";
 
 export const tiktokScraper = async () => {
-	const fashionData = await fetchTikTokVideosByHashtag("fashion", 0);
-	const searchId = fashionData.extra.logid;
-	const cursor = fashionData.cursor;
+	const DELAY_TIMER_MS = 1000;
+	const CUSOR_MAX = 100;
 
-	// // Retrieve trending video data
-	// const trendingPostList = await fetchTikTokTrendingVideos();
+	let cursor = 0;
+	let searchId = "";
+	let attributesList: TikTokAttributes[] = [];
 
-	// // Filter for fashion related posts based on hashtag keywords
-	// const fashionPostList: TikTokPost[] = trendingPostList.filter(
-	// 	(post: TikTokPost) =>
-	// 		keywords.some((keyword) =>
-	// 			getHashTags(post.textExtra).includes(keyword)
-	// 		)
-	// );
+	while (cursor < CUSOR_MAX) {
+		const posts = await fetchTikTokPostsByHashtag("fashion", cursor, searchId);
+		const attributes = getAttributesFromTikTokPosts(posts);
+		attributesList.push(...attributes);
 
-	// // Scrape attributes of each fashion post
-	// const fashionAttributesList: FashionAttributes[] = await Promise.all(
-	// 	fashionPostList.map(async (fashionPost) => {
-	// 		return await getAttributes(fashionPost);
-	// 	})
-	// );
+		cursor = posts.cursor;
+		searchId = posts.extra.logid;
 
-	// // Save result to CSV
-	// if (fashionAttributesList.length != 0) saveToCSV(fashionAttributesList);
-};
+		// Exit loop if there are no more posts
+		if (posts.has_more == 0) break;
 
-const getHashTags = (textExtraArray: { hashtagName: string }[]): string => {
-	if (textExtraArray) {
-		return textExtraArray.map((item) => `#${item.hashtagName}`).join("\n");
-	} else {
-		return "";
+		// Delay to avoid rate limit
+		await delay(DELAY_TIMER_MS);
 	}
+
+	// Save result to CSV
+	if (attributesList.length != 0) saveToCSV(attributesList);
 };
 
-const getAttributes = async (post: TikTokPost) => {
+const getAttributesFromTikTokPosts = (posts: any) => {
+	let attributesList: TikTokAttributes[] = [];
+
 	try {
-		const attributes: FashionAttributes = {
-			PostURL: `https://tiktok.com/@${post.author.uniqueId}/video/${post.video.id}`,
-			Account: post.author.uniqueId,
-			"Account Followers": post.authorStats.followerCount,
-			Views: post.stats.playCount,
-			Likes: post.stats.diggCount,
-			"Comment Count": post.stats.commentCount,
-			Saved: post.stats.collectCount,
-			Caption: post.desc,
-			Hashtags: getHashTags(post.textExtra),
-			"Date Posted": formatDate(post.createTime),
-			"Date Collected": formatDate(Date.now() / 1000),
-			Shares: post.stats.shareCount,
-		};
+		posts?.data?.forEach((post: any) => {
+			if (post?.type == 1) {
+				const attributes: TikTokAttributes = {
+					id: post.item.id,
+					PostURL: `https://tiktok.com/@${post.item.author.uniqueId}/video/${post.item.video.id}`,
+					Account: post.item.author.uniqueId,
+					"Account Followers": post.item.authorStats.followerCount,
+					"Account Heart Count": post.item.authorStats.heartCount,
+					"Account Video Count": post.item.authorStats.videoCount,
+					Views: post.item.stats.playCount,
+					Likes: post.item.stats.diggCount,
+					Shares: post.item.stats.shareCount,
+					Saved: post.item.stats.collectCount,
+					"Comment Count": post.item.stats.commentCount,
+					Comments: [],
+					Caption: post.item.desc,
+					Hashtags: arrayToString(
+						post.item.challenges.map((challenge: any) => challenge.title)
+					),
+					Music: post.item.music.title,
+					"Date Posted": formatDate(post.item.createTime),
+					"Date Collected": formatDate(Date.now() / 1000),
+				};
 
-		return attributes;
+				attributesList.push(attributes);
+			}
+		});
+
+		return attributesList;
 	} catch (error) {
-		console.error("Error in getAttributes:", error);
-		return <FashionAttributes>{};
+		console.error("Error in getAttributesFromTikTokPost:", error);
+		return attributesList;
 	}
 };
 
-const formatDate = (timestamp: number) => {
-	return new Date(timestamp * 1000).toLocaleDateString("en-US", {
-		year: "numeric",
-		month: "numeric",
-		day: "numeric",
-		timeZone: "America/Los_Angeles",
-	});
-};
-
-const saveToCSV = (record: FashionAttributes[]) => {
+const saveToCSV = (record: TikTokAttributes[]) => {
 	try {
 		const csvWriter = createObjectCsvWriter({
 			path: "tiktok-fashion-posts.csv",
@@ -82,15 +80,18 @@ const saveToCSV = (record: FashionAttributes[]) => {
 				{ id: "PostURL", title: "PostURL" },
 				{ id: "Account", title: "Account" },
 				{ id: "Account Followers", title: "Account Followers" },
+				{ id: "Account Heart Count", title: "Account Heart Count" },
+				{ id: "Account Video Count", title: "Account Video Count" },
 				{ id: "Views", title: "Views" },
 				{ id: "Likes", title: "Likes" },
-				{ id: "Comment Count", title: "Comment Count" },
+				{ id: "Shares", title: "Shares" },
 				{ id: "Saved", title: "Saved" },
+				{ id: "Comment Count", title: "Comment Count" },
 				{ id: "Caption", title: "Caption" },
 				{ id: "Hashtags", title: "Hashtags" },
+				{ id: "Music", title: "Music" },
 				{ id: "Date Posted", title: "Date Posted" },
 				{ id: "Date Collected", title: "Date Collected" },
-				{ id: "Shares", title: "Shares" },
 			],
 			append: true,
 		});

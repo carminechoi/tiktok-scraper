@@ -1,36 +1,19 @@
-export interface TikTokPost {
-	author: {
-		uniqueId: string;
-	};
-	authorStats: {
-		followerCount: number;
-	};
-	video: {
-		id: string;
-	};
-	stats: {
-		playCount: number;
-		diggCount: number;
-		commentCount: number;
-		collectCount: number;
-		shareCount: number;
-	};
-	desc: string;
-	textExtra: { hashtagName: string }[];
-	createTime: number;
-}
-
-export interface FashionAttributes {
+export interface TikTokAttributes {
+	id: string;
 	PostURL: string;
 	Account: string;
 	"Account Followers": number;
+	"Account Heart Count": number;
+	"Account Video Count": number;
 	Views: number;
 	Likes: number;
-	"Comment Count": number;
+	Shares: number;
 	Saved: number;
+	"Comment Count": number;
+	Comments: [];
 	Caption: string;
 	Hashtags: string;
+	Music: string;
 	"Date Posted": string;
 	"Date Collected": string;
-	Shares: number;
 }

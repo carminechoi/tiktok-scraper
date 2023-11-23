@@ -18,11 +18,9 @@ export const tiktokScraper = async () => {
 	try {
 		const tiktokPosts = await getTikTokPosts();
 
-		console.log(tiktokPosts.length);
-
 		// Exit scraper if there are no posts
 		if (tiktokPosts.length === 0) {
-			console.log("No TikTok posts found.");
+			console.error("No TikTok posts found.");
 			return;
 		}
 
@@ -83,14 +81,15 @@ const getTikTokPosts = async () => {
 };
 
 const getAttributesFromTikTokPosts = async (posts: any) => {
+	const attributeList: TikTokAttributes[] = [];
+
 	try {
 		if (!Array.isArray(posts)) {
 			throw new Error("Invalid posts data");
 		}
 
-		const attributePromises = posts
-			.filter((post: any) => post?.type === 1)
-			.map(async (post: any) => {
+		for (const post of posts) {
+			if (post?.type === 1) {
 				const commentsList = await fetchComments(post.item.id);
 
 				// Map attribute values
@@ -115,13 +114,13 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 					"Date Collected": formatDate(Date.now() / 1000),
 				};
 
-				return attributes;
-			});
-
-		return await Promise.all(attributePromises);
+				attributeList.push(attributes);
+			}
+		}
+		return attributeList;
 	} catch (error) {
 		console.error("Error in getAttributesFromTikTokPost:", error);
-		return [];
+		return attributeList;
 	}
 };
 

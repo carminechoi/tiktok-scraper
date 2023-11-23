@@ -11,7 +11,7 @@ Scrape and analyze trending, fashion-related, TikTok content.
 - Right click and select Inspect
 - Open the Application tab
 - Open your Cookies for [https://www.tiktok.com](https://www.tiktok.com)
-- Copy your values for tt_chain_token and ttwid
+- Copy your values for tt_chain_token, ttwid, sessionid_ss
 - Paste the values to their respective variables in the .env.example file
 - Rename the .env.example file to .env
 

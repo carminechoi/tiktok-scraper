@@ -1,5 +1,4 @@
 export interface TikTokAttributes {
-	id: string;
 	PostURL: string;
 	Account: string;
 	"Account Followers": number;
@@ -10,7 +9,7 @@ export interface TikTokAttributes {
 	Shares: number;
 	Saved: number;
 	"Comment Count": number;
-	Comments: [];
+	Comments: string[];
 	Caption: string;
 	Hashtags: string;
 	Music: string;

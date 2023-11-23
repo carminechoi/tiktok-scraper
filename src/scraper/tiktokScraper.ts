@@ -1,5 +1,7 @@
-import { fetchTikTokPostsByHashtag } from "./tiktokApi";
-import { keywords } from "../fashion-keywords.json";
+import {
+	fetchTikTokPostsByHashtag,
+	fetchTikTokCommentsByPostId,
+} from "./tiktokApi";
 import arrayToString from "../utils/arrayToString";
 import delay from "../utils/delay";
 import formatDate from "../utils/formatDate";
@@ -7,51 +9,92 @@ import saveToCSV from "../utils/saveToCSV";
 import { TikTokAttributes } from "../types/tiktokTypes";
 import { CsvHeader } from "../types/csvTypes";
 
+const COMMENTS_PER_FETCH = 10000;
+const INITIAL_CURSOR = 0;
+const DELAY_TIMER_MS = 100;
+const CUSOR_MAX = 100;
+
 export const tiktokScraper = async () => {
-	const DELAY_TIMER_MS = 1000;
-	const CUSOR_MAX = 10;
+	try {
+		const tiktokPosts = await getTikTokPosts();
 
-	let cursor = 0;
-	let searchId = "";
-	let attributesList: TikTokAttributes[] = [];
+		console.log(tiktokPosts.length);
 
-	while (cursor < CUSOR_MAX) {
-		const posts = await fetchTikTokPostsByHashtag("fashion", cursor, searchId);
-		const attributes = getAttributesFromTikTokPosts(posts);
-		attributesList.push(...attributes);
+		// Exit scraper if there are no posts
+		if (tiktokPosts.length === 0) {
+			console.log("No TikTok posts found.");
+			return;
+		}
 
-		// Update for next fetch
-		cursor = posts.cursor;
-		searchId = posts.extra.logid;
+		// Get Attributes from TikTok posts
+		const attributes: TikTokAttributes[] = await getAttributesFromTikTokPosts(
+			tiktokPosts
+		);
 
-		// Exit loop if there are no more posts
-		if (posts.has_more == 0) break;
-
-		// Delay to avoid rate limit
-		await delay(DELAY_TIMER_MS);
-	}
-
-	// Save result to CSV if attributesList is not empty
-	if (attributesList.length > 0) {
-		const header: CsvHeader[] = Object.keys(attributesList[0])
-			.filter((key) => key !== "id")
-			.map((key) => ({
+		// Save result to CSV if attributesList is not empty
+		if (attributes.length > 0) {
+			const header: CsvHeader[] = Object.keys(attributes[0]).map((key) => ({
 				id: key,
 				title: key,
 			}));
 
-		await saveToCSV("tiktok-fashion-posts.csv", header, attributesList);
+			await saveToCSV("tiktok-fashion-posts.csv", header, attributes);
+		}
+	} catch (error) {
+		console.error("Error in tiktokScraper:", error);
 	}
 };
 
-const getAttributesFromTikTokPosts = (posts: any) => {
-	let attributesList: TikTokAttributes[] = [];
-
+const getTikTokPosts = async () => {
+	let tiktokPosts = [];
 	try {
-		posts?.data?.forEach((post: any) => {
-			if (post?.type == 1) {
+		let cursor = 0;
+		let searchId = "";
+		let hasMore = true;
+
+		while (cursor < CUSOR_MAX && hasMore) {
+			const posts = await fetchTikTokPostsByHashtag(
+				"fashion",
+				cursor,
+				searchId
+			);
+			if (posts.data !== undefined && posts.data !== null) {
+				tiktokPosts.push(...posts.data);
+			}
+
+			// Use the same searchId from the first iteration
+			if (cursor === 0) {
+				searchId = posts.extra.logid;
+			}
+
+			// Update for next fetch
+			cursor = posts.cursor;
+			hasMore = posts.has_more === 1;
+
+			// Delay to avoid rate limit
+			await delay(DELAY_TIMER_MS);
+		}
+
+		return tiktokPosts;
+	} catch (error) {
+		console.error("Error in getTikTokPosts:", error);
+		return tiktokPosts;
+	}
+};
+
+const getAttributesFromTikTokPosts = async (posts: any) => {
+	try {
+		if (!Array.isArray(posts)) {
+			throw new Error("Invalid posts data");
+		}
+
+		const attributePromises = posts
+			.filter((post: any) => post?.type === 1)
+			.map(async (post: any) => {
+				const commentsList = await fetchComments(post.item.id);
+
+				// Map attribute values
 				const attributes: TikTokAttributes = {
-					id: post.item.id,
 					PostURL: `https://www.tiktok.com/@${post.item.author.uniqueId}/video/${post.item.video.id}`,
 					Account: post.item.author.uniqueId,
 					"Account Followers": post.item.authorStats.followerCount,
@@ -62,7 +105,7 @@ const getAttributesFromTikTokPosts = (posts: any) => {
 					Shares: post.item.stats.shareCount,
 					Saved: post.item.stats.collectCount,
 					"Comment Count": post.item.stats.commentCount,
-					Comments: [],
+					Comments: commentsList,
 					Caption: post.item.desc,
 					Hashtags: arrayToString(
 						post.item.challenges?.map((challenge: any) => challenge.title)
@@ -72,13 +115,42 @@ const getAttributesFromTikTokPosts = (posts: any) => {
 					"Date Collected": formatDate(Date.now() / 1000),
 				};
 
-				attributesList.push(attributes);
-			}
-		});
+				return attributes;
+			});
 
-		return attributesList;
+		return await Promise.all(attributePromises);
 	} catch (error) {
 		console.error("Error in getAttributesFromTikTokPost:", error);
-		return attributesList;
+		return [];
+	}
+};
+
+const fetchComments = async (postId: string) => {
+	try {
+		let comments: string[] = [];
+		let hasMore = true;
+		let cursor = INITIAL_CURSOR;
+
+		while (hasMore) {
+			const data = await fetchTikTokCommentsByPostId(
+				postId,
+				COMMENTS_PER_FETCH,
+				cursor
+			);
+			if (data.comments !== undefined && data.comments !== null) {
+				comments.push(
+					...data.comments.map((comment: { text: string }) => comment.text)
+				);
+			}
+
+			hasMore = data.has_more === 1;
+			cursor = data.cursor;
+
+			await delay(DELAY_TIMER_MS);
+		}
+		return comments;
+	} catch (error) {
+		console.error("Error in fetchComments:", error);
+		return [];
 	}
 };

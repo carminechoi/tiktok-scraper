@@ -1,47 +1,102 @@
-import { createObjectCsvWriter } from "csv-writer";
-import { fetchTikTokPostsByHashtag } from "./tiktokApi";
-import { keywords } from "../fashion-keywords.json";
-import { TikTokAttributes } from "../types/tiktokTypes";
+import {
+	fetchTikTokPostsByHashtag,
+	fetchTikTokCommentsByPostId,
+} from "./tiktokApi";
 import arrayToString from "../utils/arrayToString";
 import delay from "../utils/delay";
 import formatDate from "../utils/formatDate";
+import saveToCSV from "../utils/saveToCSV";
+import { TikTokAttributes } from "../types/tiktokTypes";
+import { CsvHeader } from "../types/csvTypes";
+import {
+	COMMENTS_PER_FETCH,
+	INITIAL_CURSOR,
+	DELAY_TIMER_MS,
+	CUSOR_MAX,
+} from "../constants";
 
 export const tiktokScraper = async () => {
-	const DELAY_TIMER_MS = 1000;
-	const CUSOR_MAX = 100;
+	try {
+		const tiktokPosts = await getTikTokPosts();
 
-	let cursor = 0;
-	let searchId = "";
-	let attributesList: TikTokAttributes[] = [];
+		// Exit scraper if there are no posts
+		if (tiktokPosts.length === 0) {
+			console.error("No TikTok posts found.");
+			return;
+		}
 
-	while (cursor < CUSOR_MAX) {
-		const posts = await fetchTikTokPostsByHashtag("fashion", cursor, searchId);
-		const attributes = getAttributesFromTikTokPosts(posts);
-		attributesList.push(...attributes);
+		// Get Attributes from TikTok posts
+		const attributes: TikTokAttributes[] = await getAttributesFromTikTokPosts(
+			tiktokPosts
+		);
 
-		cursor = posts.cursor;
-		searchId = posts.extra.logid;
+		// Save result to CSV if attributesList is not empty
+		if (attributes.length > 0) {
+			const header: CsvHeader[] = Object.keys(attributes[0]).map((key) => ({
+				id: key,
+				title: key,
+			}));
 
-		// Exit loop if there are no more posts
-		if (posts.has_more == 0) break;
-
-		// Delay to avoid rate limit
-		await delay(DELAY_TIMER_MS);
+			await saveToCSV("tiktok-fashion-posts.csv", header, attributes);
+		}
+	} catch (error) {
+		console.error("Error in tiktokScraper:", error);
 	}
-
-	// Save result to CSV
-	if (attributesList.length != 0) saveToCSV(attributesList);
 };
 
-const getAttributesFromTikTokPosts = (posts: any) => {
-	let attributesList: TikTokAttributes[] = [];
+const getTikTokPosts = async () => {
+	let tiktokPosts = [];
+	try {
+		let cursor = 0;
+		let searchId = "";
+		let hasMore = true;
+
+		while (cursor < CUSOR_MAX && hasMore) {
+			const posts = await fetchTikTokPostsByHashtag(
+				"fashion",
+				cursor,
+				searchId
+			);
+			if (posts.data !== undefined && posts.data !== null) {
+				tiktokPosts.push(...posts.data);
+			}
+
+			// Use the same searchId from the first iteration
+			if (cursor === 0) {
+				searchId = posts.extra.logid;
+			}
+
+			// Update for next fetch
+			cursor = posts.cursor;
+			hasMore = posts.has_more === 1;
+
+			// Delay to avoid rate limit
+			await delay(DELAY_TIMER_MS);
+		}
+
+		return tiktokPosts;
+	} catch (error) {
+		console.error("Error in getTikTokPosts:", error);
+		return tiktokPosts;
+	}
+};
+
+const getAttributesFromTikTokPosts = async (posts: any) => {
+	const attributeList: TikTokAttributes[] = [];
 
 	try {
-		posts?.data?.forEach((post: any) => {
-			if (post?.type == 1) {
+		if (!Array.isArray(posts)) {
+			throw new Error("Invalid posts data");
+		}
+
+		// Map each post data to TikTokAttributes object
+		for (const post of posts) {
+			if (post?.type === 1) {
+				const commentsList = await fetchComments(post.item.id);
+
+				// Map attribute values
 				const attributes: TikTokAttributes = {
-					id: post.item.id,
-					PostURL: `https://tiktok.com/@${post.item.author.uniqueId}/video/${post.item.video.id}`,
+					PostURL: `https://www.tiktok.com/@${post.item.author.uniqueId}/video/${post.item.video.id}`,
 					Account: post.item.author.uniqueId,
 					"Account Followers": post.item.authorStats.followerCount,
 					"Account Heart Count": post.item.authorStats.heartCount,
@@ -51,60 +106,53 @@ const getAttributesFromTikTokPosts = (posts: any) => {
 					Shares: post.item.stats.shareCount,
 					Saved: post.item.stats.collectCount,
 					"Comment Count": post.item.stats.commentCount,
-					Comments: [],
+					Comments: commentsList,
 					Caption: post.item.desc,
 					Hashtags: arrayToString(
-						post.item.challenges.map((challenge: any) => challenge.title)
+						post.item.challenges?.map((challenge: any) => challenge.title)
 					),
 					Music: post.item.music.title,
 					"Date Posted": formatDate(post.item.createTime),
 					"Date Collected": formatDate(Date.now() / 1000),
 				};
 
-				attributesList.push(attributes);
+				attributeList.push(attributes);
 			}
-		});
-
-		return attributesList;
+		}
+		return attributeList;
 	} catch (error) {
 		console.error("Error in getAttributesFromTikTokPost:", error);
-		return attributesList;
+		return attributeList;
 	}
 };
 
-const saveToCSV = (record: TikTokAttributes[]) => {
-	try {
-		const csvWriter = createObjectCsvWriter({
-			path: "tiktok-fashion-posts.csv",
-			header: [
-				{ id: "PostURL", title: "PostURL" },
-				{ id: "Account", title: "Account" },
-				{ id: "Account Followers", title: "Account Followers" },
-				{ id: "Account Heart Count", title: "Account Heart Count" },
-				{ id: "Account Video Count", title: "Account Video Count" },
-				{ id: "Views", title: "Views" },
-				{ id: "Likes", title: "Likes" },
-				{ id: "Shares", title: "Shares" },
-				{ id: "Saved", title: "Saved" },
-				{ id: "Comment Count", title: "Comment Count" },
-				{ id: "Caption", title: "Caption" },
-				{ id: "Hashtags", title: "Hashtags" },
-				{ id: "Music", title: "Music" },
-				{ id: "Date Posted", title: "Date Posted" },
-				{ id: "Date Collected", title: "Date Collected" },
-			],
-			append: true,
-		});
+const fetchComments = async (postId: string) => {
+	let comments: string[] = [];
 
-		csvWriter
-			.writeRecords(record)
-			.then(() => {
-				console.log("CSV write complete");
-			})
-			.catch((error) => {
-				console.error("Error writing to CSV:", error);
-			});
+	try {
+		let hasMore = true;
+		let cursor = INITIAL_CURSOR;
+
+		while (hasMore) {
+			const data = await fetchTikTokCommentsByPostId(
+				postId,
+				COMMENTS_PER_FETCH,
+				cursor
+			);
+			if (data.comments !== undefined && data.comments !== null) {
+				comments.push(
+					...data.comments.map((comment: { text: string }) => comment.text)
+				);
+			}
+
+			hasMore = data.has_more === 1;
+			cursor = data.cursor;
+
+			await delay(DELAY_TIMER_MS);
+		}
+		return comments;
 	} catch (error) {
-		console.error("Error in saveToCSV:", error);
+		console.error("Error in fetchComments:", error);
+		return comments;
 	}
 };

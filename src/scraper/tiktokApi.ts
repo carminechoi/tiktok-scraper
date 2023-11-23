@@ -1,10 +1,15 @@
-const { TT_CHAIN_TOKEN, TTWID } = process.env;
+import { TT_CHAIN_TOKEN, TTWID, SESSIONID_SS } from "../constants";
 
-if (!TT_CHAIN_TOKEN || !TTWID) {
-	throw new Error("Missing TikTok API environment variables");
-}
+const BASE_URL = "https://www.tiktok.com/api";
+const HEADERS = new Headers({
+	Host: "www.tiktok.com",
+	Cookie: `tt_chain_token=${TT_CHAIN_TOKEN}; ttwid=${TTWID}; sessionid_ss=${SESSIONID_SS}`,
+});
 
-const baseUrl = "https://www.tiktok.com/api";
+const handleFetchError = (error: any, source: string) => {
+	console.error(`Error in ${source}:`, error);
+	throw { error: `Error in ${source}: ${error.message}` };
+};
 
 const fetchTikTokPostsByHashtag = async (
 	hashtag: string = "fashion",
@@ -12,13 +17,8 @@ const fetchTikTokPostsByHashtag = async (
 	searchId: string = ""
 ) => {
 	try {
-		const url = `${baseUrl}/search/general/full/?keyword=%23${hashtag}&offset=${offset}&search_id=${searchId}`;
-		const headers = new Headers({
-			Host: "www.tiktok.com",
-			Cookie: `tt_chain_token=${TT_CHAIN_TOKEN}; ttwid=${TTWID};`,
-		});
-
-		const response = await fetch(url, { method: "get", headers: headers });
+		const url = `${BASE_URL}/search/general/full/?keyword=%23${hashtag}&offset=${offset}&search_id=${searchId}`;
+		const response = await fetch(url, { method: "get", headers: HEADERS });
 
 		if (!response.ok) {
 			throw new Error(`HTTP error! Status: ${response.status}`);
@@ -26,24 +26,18 @@ const fetchTikTokPostsByHashtag = async (
 
 		return await response.json();
 	} catch (error) {
-		console.error("Error fetching TikTok hashtag data:", error);
-		throw error;
+		handleFetchError(error, "fetchTikTokPostsByHashtag");
 	}
 };
 
 const fetchTikTokCommentsByPostId = async (
-	id: number,
+	id: string,
 	count: number = 20,
 	cursor: number = 0
 ) => {
 	try {
-		const url = `${baseUrl}/comment/list/?aweme_id=${id}&count=${count}&cursor=${cursor}`;
-		const headers = new Headers({
-			Host: "www.tiktok.com",
-			Cookie: `tt_chain_token=${TT_CHAIN_TOKEN}; ttwid=${TTWID};`,
-		});
-
-		const response = await fetch(url, { method: "get", headers: headers });
+		const url = `${BASE_URL}/comment/list/?aweme_id=${id}&count=${count}&cursor=${cursor}`;
+		const response = await fetch(url, { method: "get", headers: HEADERS });
 
 		if (!response.ok) {
 			throw new Error(`HTTP error! Status: ${response.status}`);
@@ -51,8 +45,7 @@ const fetchTikTokCommentsByPostId = async (
 
 		return await response.json();
 	} catch (error) {
-		console.error("Error fetching TikTok hashtag data:", error);
-		throw error;
+		handleFetchError(error, "fetchTikTokCommentsByPostId");
 	}
 };
 

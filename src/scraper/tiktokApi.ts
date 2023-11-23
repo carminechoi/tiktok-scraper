@@ -1,8 +1,4 @@
-const { TT_CHAIN_TOKEN, TTWID, SESSIONID_SS } = process.env;
-
-if (!TT_CHAIN_TOKEN || !TTWID || !SESSIONID_SS) {
-	throw new Error("Missing TikTok API environment variables");
-}
+import { TT_CHAIN_TOKEN, TTWID, SESSIONID_SS } from "../constants";
 
 const BASE_URL = "https://www.tiktok.com/api";
 const HEADERS = new Headers({

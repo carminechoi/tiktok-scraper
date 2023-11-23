@@ -8,11 +8,12 @@ import formatDate from "../utils/formatDate";
 import saveToCSV from "../utils/saveToCSV";
 import { TikTokAttributes } from "../types/tiktokTypes";
 import { CsvHeader } from "../types/csvTypes";
-
-const COMMENTS_PER_FETCH = 10000;
-const INITIAL_CURSOR = 0;
-const DELAY_TIMER_MS = 100;
-const CUSOR_MAX = 100;
+import {
+	COMMENTS_PER_FETCH,
+	INITIAL_CURSOR,
+	DELAY_TIMER_MS,
+	CUSOR_MAX,
+} from "../constants";
 
 export const tiktokScraper = async () => {
 	try {
@@ -88,6 +89,7 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 			throw new Error("Invalid posts data");
 		}
 
+		// Map each post data to TikTokAttributes object
 		for (const post of posts) {
 			if (post?.type === 1) {
 				const commentsList = await fetchComments(post.item.id);
@@ -125,8 +127,9 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 };
 
 const fetchComments = async (postId: string) => {
+	let comments: string[] = [];
+
 	try {
-		let comments: string[] = [];
 		let hasMore = true;
 		let cursor = INITIAL_CURSOR;
 
@@ -150,6 +153,6 @@ const fetchComments = async (postId: string) => {
 		return comments;
 	} catch (error) {
 		console.error("Error in fetchComments:", error);
-		return [];
+		return comments;
 	}
 };

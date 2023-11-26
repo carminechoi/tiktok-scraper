@@ -8,12 +8,7 @@ import formatDate from "../utils/formatDate";
 import saveToCSV from "../utils/saveToCSV";
 import { TikTokAttributes } from "../types/tiktokTypes";
 import { CsvHeader } from "../types/csvTypes";
-import {
-	COMMENTS_PER_FETCH,
-	INITIAL_CURSOR,
-	DELAY_TIMER_MS,
-	CUSOR_MAX,
-} from "../constants";
+import { INITIAL_CURSOR, DELAY_TIMER_MS, CUSOR_MAX } from "../constants";
 
 export const tiktokScraper = async () => {
 	try {
@@ -26,16 +21,17 @@ export const tiktokScraper = async () => {
 		}
 
 		// Get Attributes from TikTok posts
-		const attributes: TikTokAttributes[] = await getAttributesFromTikTokPosts(
-			tiktokPosts
-		);
+		const attributes: TikTokAttributes[] =
+			await getAttributesFromTikTokPosts(tiktokPosts);
 
 		// Save result to CSV if attributesList is not empty
 		if (attributes.length > 0) {
-			const header: CsvHeader[] = Object.keys(attributes[0]).map((key) => ({
-				id: key,
-				title: key,
-			}));
+			const header: CsvHeader[] = Object.keys(attributes[0]).map(
+				(key) => ({
+					id: key,
+					title: key,
+				})
+			);
 
 			await saveToCSV("tiktok-fashion-posts.csv", header, attributes);
 		}
@@ -92,7 +88,10 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 		// Map each post data to TikTokAttributes object
 		for (const post of posts) {
 			if (post?.type === 1) {
-				const commentsList = await fetchComments(post.item.id);
+				const commentsList = await fetchComments(
+					post.item.id,
+					post.item.stats.commentCount
+				);
 
 				// Map attribute values
 				const attributes: TikTokAttributes = {
@@ -109,7 +108,9 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 					Comments: commentsList,
 					Caption: post.item.desc,
 					Hashtags: arrayToString(
-						post.item.challenges?.map((challenge: any) => challenge.title)
+						post.item.challenges?.map(
+							(challenge: any) => challenge.title
+						)
 					),
 					Music: post.item.music.title,
 					"Date Posted": formatDate(post.item.createTime),
@@ -126,7 +127,7 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 	}
 };
 
-const fetchComments = async (postId: string) => {
+const fetchComments = async (postId: string, commentCount: number) => {
 	let comments: string[] = [];
 
 	try {
@@ -136,12 +137,14 @@ const fetchComments = async (postId: string) => {
 		while (hasMore) {
 			const data = await fetchTikTokCommentsByPostId(
 				postId,
-				COMMENTS_PER_FETCH,
+				commentCount,
 				cursor
 			);
 			if (data.comments !== undefined && data.comments !== null) {
 				comments.push(
-					...data.comments.map((comment: { text: string }) => comment.text)
+					...data.comments.map(
+						(comment: { text: string }) => comment.text
+					)
 				);
 			}
 
@@ -149,6 +152,7 @@ const fetchComments = async (postId: string) => {
 			cursor = data.cursor;
 
 			await delay(DELAY_TIMER_MS);
+			console.log(cursor);
 		}
 		return comments;
 	} catch (error) {

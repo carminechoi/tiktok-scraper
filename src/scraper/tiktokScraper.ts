@@ -79,14 +79,15 @@ const getTikTokPosts = async () => {
 
 const getAttributesFromTikTokPosts = async (posts: any) => {
 	const attributeList: TikTokAttributes[] = [];
+	const attributePromises: any[] = [];
 
 	try {
 		if (!Array.isArray(posts)) {
 			throw new Error("Invalid posts data");
 		}
 
-		// Map each post data to TikTokAttributes object
-		for (const post of posts) {
+		const getAttributesFromTikTokPost = async (post: any) => {
+			// Map each post data to TikTokAttributes object
 			if (post?.type === 1) {
 				const commentsList = await fetchComments(
 					post.item.id,
@@ -119,7 +120,14 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 
 				attributeList.push(attributes);
 			}
+		};
+
+		for (const post of posts) {
+			attributePromises.push(getAttributesFromTikTokPost(post));
 		}
+
+		await Promise.all(attributePromises);
+
 		return attributeList;
 	} catch (error) {
 		console.error("Error in getAttributesFromTikTokPost:", error);
@@ -152,7 +160,6 @@ const fetchComments = async (postId: string, commentCount: number) => {
 			cursor = data.cursor;
 
 			await delay(DELAY_TIMER_MS);
-			console.log(cursor);
 		}
 		return comments;
 	} catch (error) {

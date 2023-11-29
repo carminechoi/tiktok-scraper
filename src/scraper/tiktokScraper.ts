@@ -7,7 +7,6 @@ import delay from "../utils/delay";
 import formatDate from "../utils/formatDate";
 import saveToCSV from "../utils/saveToCSV";
 import { TikTokAttributes } from "../types/tiktokTypes";
-import { CsvHeader } from "../types/csvTypes";
 import { INITIAL_CURSOR, DELAY_TIMER_MS, CUSOR_MAX } from "../constants";
 import pLimit from "p-limit";
 
@@ -28,15 +27,8 @@ export const tiktokScraper = async () => {
 			tiktokPosts
 		);
 
-		// Save result to CSV if attributesList is not empty
-		if (attributes.length > 0) {
-			const header: CsvHeader[] = Object.keys(attributes[0]).map((key) => ({
-				id: key,
-				title: key,
-			}));
-
-			await saveToCSV("tiktok-fashion-posts.csv", header, attributes);
-		}
+		// Save result to CSV
+		await saveToCSV("tiktok-fashion-posts.csv", attributes);
 	} catch (error) {
 		console.error("Error in tiktokScraper:", error);
 	}

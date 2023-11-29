@@ -9,6 +9,9 @@ import saveToCSV from "../utils/saveToCSV";
 import { TikTokAttributes } from "../types/tiktokTypes";
 import { CsvHeader } from "../types/csvTypes";
 import { INITIAL_CURSOR, DELAY_TIMER_MS, CUSOR_MAX } from "../constants";
+import pLimit from "p-limit";
+
+const limit = pLimit(40);
 
 export const tiktokScraper = async () => {
 	try {
@@ -21,17 +24,16 @@ export const tiktokScraper = async () => {
 		}
 
 		// Get Attributes from TikTok posts
-		const attributes: TikTokAttributes[] =
-			await getAttributesFromTikTokPosts(tiktokPosts);
+		const attributes: TikTokAttributes[] = await getAttributesFromTikTokPosts(
+			tiktokPosts
+		);
 
 		// Save result to CSV if attributesList is not empty
 		if (attributes.length > 0) {
-			const header: CsvHeader[] = Object.keys(attributes[0]).map(
-				(key) => ({
-					id: key,
-					title: key,
-				})
-			);
+			const header: CsvHeader[] = Object.keys(attributes[0]).map((key) => ({
+				id: key,
+				title: key,
+			}));
 
 			await saveToCSV("tiktok-fashion-posts.csv", header, attributes);
 		}
@@ -79,7 +81,6 @@ const getTikTokPosts = async () => {
 
 const getAttributesFromTikTokPosts = async (posts: any) => {
 	const attributeList: TikTokAttributes[] = [];
-	const attributePromises: any[] = [];
 
 	try {
 		if (!Array.isArray(posts)) {
@@ -109,9 +110,7 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 					Comments: commentsList,
 					Caption: post.item.desc,
 					Hashtags: arrayToString(
-						post.item.challenges?.map(
-							(challenge: any) => challenge.title
-						)
+						post.item.challenges?.map((challenge: any) => challenge.title)
 					),
 					Music: post.item.music.title,
 					"Date Posted": formatDate(post.item.createTime),
@@ -122,11 +121,9 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 			}
 		};
 
-		for (const post of posts) {
-			attributePromises.push(getAttributesFromTikTokPost(post));
-		}
-
-		await Promise.all(attributePromises);
+		await Promise.all(
+			posts.map((post) => limit(() => getAttributesFromTikTokPost(post)))
+		);
 
 		return attributeList;
 	} catch (error) {
@@ -150,9 +147,7 @@ const fetchComments = async (postId: string, commentCount: number) => {
 			);
 			if (data.comments !== undefined && data.comments !== null) {
 				comments.push(
-					...data.comments.map(
-						(comment: { text: string }) => comment.text
-					)
+					...data.comments.map((comment: { text: string }) => comment.text)
 				);
 			}
 

@@ -6,15 +6,15 @@ import arrayToString from "../utils/arrayToString";
 import delay from "../utils/delay";
 import formatDate from "../utils/formatDate";
 import saveToCSV from "../utils/saveToCSV";
-import { TikTokAttributes } from "../types/tiktokTypes";
+import { TikTokAttributes, TikTokPost } from "../types/tiktokTypes";
 import { INITIAL_CURSOR, DELAY_TIMER_MS, CUSOR_MAX } from "../constants";
 import pLimit from "p-limit";
 
 const limit = pLimit(40);
 
-export const tiktokScraper = async () => {
+export const tiktokScraper = async (hashtag: string, outputFile: string) => {
 	try {
-		const tiktokPosts = await getTikTokPosts();
+		const tiktokPosts = await getTikTokPostsByHashtag(hashtag);
 
 		// Exit scraper if there are no posts
 		if (tiktokPosts.length === 0) {
@@ -28,25 +28,21 @@ export const tiktokScraper = async () => {
 		);
 
 		// Save result to CSV
-		await saveToCSV("tiktok-fashion-posts.csv", attributes);
+		await saveToCSV(outputFile, attributes);
 	} catch (error) {
 		console.error("Error in tiktokScraper:", error);
 	}
 };
 
-const getTikTokPosts = async () => {
-	let tiktokPosts = [];
+const getTikTokPostsByHashtag = async (hashtag: string) => {
+	const tiktokPosts: TikTokPost[] = [];
 	try {
 		let cursor = 0;
 		let searchId = "";
 		let hasMore = true;
 
 		while (cursor < CUSOR_MAX && hasMore) {
-			const posts = await fetchTikTokPostsByHashtag(
-				"fashion",
-				cursor,
-				searchId
-			);
+			const posts = await fetchTikTokPostsByHashtag(hashtag, cursor, searchId);
 			if (posts.data !== undefined && posts.data !== null) {
 				tiktokPosts.push(...posts.data);
 			}
@@ -71,7 +67,7 @@ const getTikTokPosts = async () => {
 	}
 };
 
-const getAttributesFromTikTokPosts = async (posts: any) => {
+const getAttributesFromTikTokPosts = async (posts: TikTokPost[]) => {
 	const attributeList: TikTokAttributes[] = [];
 
 	try {
@@ -79,10 +75,10 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 			throw new Error("Invalid posts data");
 		}
 
-		const getAttributesFromTikTokPost = async (post: any) => {
+		const mapTikTokPostAttributes = async (post: TikTokPost) => {
 			// Map each post data to TikTokAttributes object
 			if (post?.type === 1) {
-				const commentsList = await fetchComments(
+				const commentsList = await fetchTikTokPostComments(
 					post.item.id,
 					post.item.stats.commentCount
 				);
@@ -102,7 +98,9 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 					Comments: commentsList,
 					Caption: post.item.desc,
 					Hashtags: arrayToString(
-						post.item.challenges?.map((challenge: any) => challenge.title)
+						post.item.challenges?.map(
+							(challenge: { title: string }) => challenge?.title
+						)
 					),
 					Music: post.item.music.title,
 					"Date Posted": formatDate(post.item.createTime),
@@ -114,7 +112,7 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 		};
 
 		await Promise.all(
-			posts.map((post) => limit(() => getAttributesFromTikTokPost(post)))
+			posts.map((post) => limit(() => mapTikTokPostAttributes(post)))
 		);
 
 		return attributeList;
@@ -124,7 +122,10 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 	}
 };
 
-const fetchComments = async (postId: string, commentCount: number) => {
+const fetchTikTokPostComments = async (
+	postId: string,
+	commentCount: number
+) => {
 	let comments: string[] = [];
 
 	try {

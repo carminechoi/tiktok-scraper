@@ -1,3 +1,35 @@
+export interface TikTokPost {
+	type: number;
+	item: {
+		id: string;
+		stats: {
+			commentCount: number;
+			playCount: number;
+			diggCount: number;
+			shareCount: number;
+			collectCount: number;
+		};
+		author: {
+			uniqueId: string;
+		};
+		authorStats: {
+			followerCount: number;
+			heartCount: number;
+			videoCount: number;
+		};
+
+		video: {
+			id: string;
+		};
+		challenges: Array<{ title: string }>;
+		desc: string;
+		music: {
+			title: string;
+		};
+		createTime: number;
+	};
+}
+
 export interface TikTokAttributes {
 	PostURL: string;
 	Account: string;

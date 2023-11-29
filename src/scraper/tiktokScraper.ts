@@ -6,18 +6,15 @@ import arrayToString from "../utils/arrayToString";
 import delay from "../utils/delay";
 import formatDate from "../utils/formatDate";
 import saveToCSV from "../utils/saveToCSV";
-import { TikTokAttributes } from "../types/tiktokTypes";
-import { CsvHeader } from "../types/csvTypes";
-import {
-	COMMENTS_PER_FETCH,
-	INITIAL_CURSOR,
-	DELAY_TIMER_MS,
-	CUSOR_MAX,
-} from "../constants";
+import { TikTokAttributes, TikTokPost } from "../types/tiktokTypes";
+import { INITIAL_CURSOR, DELAY_TIMER_MS, CUSOR_MAX } from "../constants";
+import pLimit from "p-limit";
 
-export const tiktokScraper = async () => {
+const limit = pLimit(40);
+
+export const tiktokScraper = async (hashtag: string, outputFile: string) => {
 	try {
-		const tiktokPosts = await getTikTokPosts();
+		const tiktokPosts = await getTikTokPostsByHashtag(hashtag);
 
 		// Exit scraper if there are no posts
 		if (tiktokPosts.length === 0) {
@@ -30,33 +27,22 @@ export const tiktokScraper = async () => {
 			tiktokPosts
 		);
 
-		// Save result to CSV if attributesList is not empty
-		if (attributes.length > 0) {
-			const header: CsvHeader[] = Object.keys(attributes[0]).map((key) => ({
-				id: key,
-				title: key,
-			}));
-
-			await saveToCSV("tiktok-fashion-posts.csv", header, attributes);
-		}
+		// Save result to CSV
+		await saveToCSV(outputFile, attributes);
 	} catch (error) {
 		console.error("Error in tiktokScraper:", error);
 	}
 };
 
-const getTikTokPosts = async () => {
-	let tiktokPosts = [];
+const getTikTokPostsByHashtag = async (hashtag: string) => {
+	const tiktokPosts: TikTokPost[] = [];
 	try {
 		let cursor = 0;
 		let searchId = "";
 		let hasMore = true;
 
 		while (cursor < CUSOR_MAX && hasMore) {
-			const posts = await fetchTikTokPostsByHashtag(
-				"fashion",
-				cursor,
-				searchId
-			);
+			const posts = await fetchTikTokPostsByHashtag(hashtag, cursor, searchId);
 			if (posts.data !== undefined && posts.data !== null) {
 				tiktokPosts.push(...posts.data);
 			}
@@ -81,7 +67,7 @@ const getTikTokPosts = async () => {
 	}
 };
 
-const getAttributesFromTikTokPosts = async (posts: any) => {
+const getAttributesFromTikTokPosts = async (posts: TikTokPost[]) => {
 	const attributeList: TikTokAttributes[] = [];
 
 	try {
@@ -89,10 +75,13 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 			throw new Error("Invalid posts data");
 		}
 
-		// Map each post data to TikTokAttributes object
-		for (const post of posts) {
+		const mapTikTokPostAttributes = async (post: TikTokPost) => {
+			// Map each post data to TikTokAttributes object
 			if (post?.type === 1) {
-				const commentsList = await fetchComments(post.item.id);
+				const commentsList = await fetchTikTokPostComments(
+					post.item.id,
+					post.item.stats.commentCount
+				);
 
 				// Map attribute values
 				const attributes: TikTokAttributes = {
@@ -109,7 +98,9 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 					Comments: commentsList,
 					Caption: post.item.desc,
 					Hashtags: arrayToString(
-						post.item.challenges?.map((challenge: any) => challenge.title)
+						post.item.challenges?.map(
+							(challenge: { title: string }) => challenge?.title
+						)
 					),
 					Music: post.item.music.title,
 					"Date Posted": formatDate(post.item.createTime),
@@ -118,7 +109,12 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 
 				attributeList.push(attributes);
 			}
-		}
+		};
+
+		await Promise.all(
+			posts.map((post) => limit(() => mapTikTokPostAttributes(post)))
+		);
+
 		return attributeList;
 	} catch (error) {
 		console.error("Error in getAttributesFromTikTokPost:", error);
@@ -126,7 +122,10 @@ const getAttributesFromTikTokPosts = async (posts: any) => {
 	}
 };
 
-const fetchComments = async (postId: string) => {
+const fetchTikTokPostComments = async (
+	postId: string,
+	commentCount: number
+) => {
 	let comments: string[] = [];
 
 	try {
@@ -136,7 +135,7 @@ const fetchComments = async (postId: string) => {
 		while (hasMore) {
 			const data = await fetchTikTokCommentsByPostId(
 				postId,
-				COMMENTS_PER_FETCH,
+				commentCount,
 				cursor
 			);
 			if (data.comments !== undefined && data.comments !== null) {

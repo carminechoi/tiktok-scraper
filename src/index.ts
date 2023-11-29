@@ -6,7 +6,7 @@ const scheduleScrapper = () => {
 	// Schedule scraper to run 1 minute
 	cron.schedule("*/5 * * * *", () => {
 		console.log("Running TikTok scraper...");
-		tiktokScraper();
+		tiktokScraper("fashion", "tiktok-fashion-posts.csv");
 	});
 };
 

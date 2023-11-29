@@ -2,13 +2,14 @@ import { createObjectCsvWriter } from "csv-writer";
 import fs from "fs/promises";
 import { CsvHeader, CsvRecord } from "../types/csvTypes";
 
-const saveToCSV = async (
-	path: string,
-	header: CsvHeader[],
-	records: CsvRecord[]
-) => {
+const saveToCSV = async (path: string, records: CsvRecord[]) => {
 	try {
-		const append = await fileExists(path);
+		const append: boolean = await fileExists(path);
+
+		const header: CsvHeader[] = Object.keys(records[0] ?? {}).map((key) => ({
+			id: key,
+			title: key,
+		}));
 
 		const csvWriter = createObjectCsvWriter({
 			path,
